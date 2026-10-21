@@ -1,6 +1,6 @@
-/** /v1/reports + /v1/players: ban sharing */
+/** /v1/reports + /v1/players: ban sharing, plus admin access / erasure */
 
-import type { Route } from "jsr:@std/http@^1.1.4/unstable-route";
+import type { Handler, Route } from "jsr:@std/http@^1.1.4/unstable-route";
 import type { ServerHandler } from "../auth.ts";
 import { randomToken } from "../crypto.ts";
 import * as db from "../db/mod.ts";
@@ -45,8 +45,36 @@ export const reportRoutes = ({ sql, now, auth }: Ctx): Route[] => {
     return json(200, playerFacts(userId.value, bans));
   };
 
+  // admin: privacy access + erasure requests
+
+  const userReports: Handler = async (_req, p) => {
+    const userId = decode.userId(pathParam(p.pathname.groups.userId), "userId");
+    if (!userId.ok) return invalid("invalid_user_id", userId.error);
+    return json(200, { userId: userId.value, reports: await db.reportsForUser(sql, userId.value) });
+  };
+
+  const eraseUser: Handler = async (_req, p) => {
+    const userId = decode.userId(pathParam(p.pathname.groups.userId), "userId");
+    if (!userId.ok) return invalid("invalid_user_id", userId.error);
+    return json(200, { deleted: await db.deleteUserReports(sql, userId.value) });
+  };
+
+  const deleteReport: Handler = async (_req, p) => {
+    const id = decode.reportId(pathParam(p.pathname.groups.reportId), "");
+    if (!id.ok || !await db.deleteReport(sql, id.value)) return fail(404, "report_not_found");
+    return new Response(null, { status: 204 });
+  };
+
+  const reports = pattern("/v1/players/:userId/reports");
   return [
     { method: "POST", pattern: pattern("/v1/reports"), handler: auth.asServer(postReport) },
     { method: "GET", pattern: pattern("/v1/players/:userId"), handler: auth.asServer(getPlayer) },
+    { method: "GET", pattern: reports, handler: auth.asAdmin(userReports) },
+    { method: "DELETE", pattern: reports, handler: auth.asAdmin(eraseUser) },
+    {
+      method: "DELETE",
+      pattern: pattern("/v1/reports/:reportId"),
+      handler: auth.asAdmin(deleteReport),
+    },
   ];
 };

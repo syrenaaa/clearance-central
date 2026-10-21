@@ -1,4 +1,4 @@
-/** /v1/servers: claims, admin register + revoke */
+/** /v1/servers: claims, admin list + register + revoke */
 
 import type { Handler, Route } from "jsr:@std/http@^1.1.4/unstable-route";
 import { ulid } from "jsr:@std/ulid@^1.0.0";
@@ -79,6 +79,8 @@ export const serverRoutes = ({ sql, now, serverList, auth }: Ctx): Route[] => {
     return json(201, { serverId, apiKey });
   };
 
+  const listServers: Handler = async () => json(200, { servers: await db.listServers(sql) });
+
   const revokeServer: Handler = async (_req, p) => {
     const id = decode.serverId(pathParam(p.pathname.groups.serverId), "");
     if (!id.ok || !await db.revokeServer(sql, id.value, now())) {
@@ -89,6 +91,7 @@ export const serverRoutes = ({ sql, now, serverList, auth }: Ctx): Route[] => {
   };
 
   return [
+    { method: "GET", pattern: pattern("/v1/servers"), handler: auth.asAdmin(listServers) },
     { method: "POST", pattern: pattern("/v1/servers"), handler: auth.asAdmin(registerServer) },
     { method: "POST", pattern: pattern("/v1/servers/claims"), handler: createClaim },
     {

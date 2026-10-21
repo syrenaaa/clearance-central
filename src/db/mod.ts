@@ -2,7 +2,13 @@
 
 export type { Rows, Sql, SqlValue, Statement } from "./sql.ts";
 export { migrate } from "./schema.ts";
-export { findServerByKeyHash, revokeServer, upsertServerKey } from "./servers.ts";
+export {
+  type AdminServer,
+  findServerByKeyHash,
+  listServers,
+  revokeServer,
+  upsertServerKey,
+} from "./servers.ts";
 export {
   type ClaimLimits,
   completeClaim,
@@ -20,8 +26,12 @@ export {
 export {
   type ActiveBan,
   activeBans,
+  type AdminReport,
+  deleteReport,
+  deleteUserReports,
   insertBan,
   insertPardon,
+  reportsForUser,
   type StoredReport,
 } from "./reports.ts";
 export { purge } from "./retention.ts";

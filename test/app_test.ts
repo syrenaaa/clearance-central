@@ -47,3 +47,16 @@ Deno.test("privacy policy has no unfilled placeholders", async () => {
   const left = String(page.body).match(/\[\[\w+\]\]/g) ?? [];
   assertEquals(left, [], "fill these in before deploying");
 });
+
+Deno.test("admin page is locked down with a strict csp", async () => {
+  const h = harness();
+  const page = await h.request("GET", "/admin");
+  assertEquals(page.status, 200);
+  const csp = page.headers.get("content-security-policy") ?? "";
+  assert(csp.includes("script-src 'self'") && !csp.includes("unsafe-inline"), csp);
+  assert(csp.includes("frame-ancestors 'none'"), csp);
+  assertEquals(page.headers.get("cache-control"), "no-store");
+  assert(!String(page.body).includes("<script>"), "no inline scripts");
+  const js = await h.request("GET", "/admin.js");
+  assertEquals(js.headers.get("content-type"), "text/javascript; charset=utf-8");
+});

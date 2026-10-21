@@ -5,6 +5,7 @@
   --line: #e4e4e2;
   --bg: #fbfbfa;
   --link: #7c3aed;
+  --bad: #b42318;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -13,6 +14,7 @@
     --line: #2a2a2a;
     --bg: #141414;
     --link: #b79cff;
+    --bad: #ff8a80;
   }
 }
 body {
@@ -168,4 +170,71 @@ main p + ul {
 }
 code {
   color: var(--link);
+}
+
+/* admin */
+main.wide {
+  max-width: 52rem;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: 0 0 1rem;
+}
+input,
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: .2rem .6rem;
+}
+input {
+  flex: 1;
+  min-width: 10rem;
+}
+input[type="number"] {
+  flex: 0 0 6rem;
+  min-width: 0;
+}
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 1px;
+}
+button {
+  cursor: pointer;
+  color: var(--link);
+}
+button:hover {
+  border-color: var(--link);
+}
+td button {
+  padding: 0 .4rem;
+}
+.bad,
+button.bad {
+  color: var(--bad);
+}
+button.bad:hover {
+  border-color: var(--bad);
+}
+tr.mute td {
+  color: var(--mute);
+}
+code.key {
+  word-break: break-all;
+}
+main.wide th,
+main.wide td {
+  text-align: left;
+}
+main.wide td:last-child {
+  text-align: right;
+}
+table + form,
+table + .row {
+  margin-top: .75rem;
 }

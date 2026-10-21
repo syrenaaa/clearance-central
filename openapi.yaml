@@ -12,8 +12,8 @@ info:
     - any route may 500 with an `Error` body. the plugin retries writes on 5xx, fails open on lookups
     - only claims are rate limited (429)
 
-    `/` is the index page, `/stats` the network stats, `/docs` this reference, `/openapi.yaml` the
-    raw spec.
+    `/` is the index page, `/stats` the network stats, `/admin` the operator page, `/docs` this
+    reference, `/openapi.yaml` the raw spec.
 servers:
   - url: https://sl-clearance.val.run
 security:
@@ -26,9 +26,30 @@ tags:
     description: anonymous daily aggregates
   - name: reports
     description: shared ban reports
+  - name: admin
+    description: operator tools, all need the admin key. the `/admin` page is a client for these
 
 paths:
   /v1/servers:
+    get:
+      tags: [admin]
+      summary: list servers (admin)
+      description: every server, newest first, revoked ones included
+      security:
+        - adminKey: []
+      responses:
+        "200":
+          description: servers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [servers]
+                properties:
+                  servers:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminServer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [servers]
       summary: register a server (admin)
@@ -214,6 +235,69 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/reports/{reportId}:
+    delete:
+      tags: [admin]
+      summary: delete one ban report (admin)
+      description: |
+        deletes the ban and its pardons, e.g. to fix a wrong report. if the server sends the same
+        ban again it comes back, so fix it there too
+      security:
+        - adminKey: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: deleted
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/players/{userId}/reports:
+    get:
+      tags: [admin]
+      summary: every ban stored about a player (admin)
+      description: |
+        for privacy access requests: all of a player's bans, including expired, pardoned and ones
+        from revoked servers, newest first
+      security:
+        - adminKey: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: reports
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerReports" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [admin]
+      summary: erase a player's reports (admin)
+      description: for privacy deletion requests. deletes all of the player's bans and their pardons
+      security:
+        - adminKey: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: erased
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: integer
+                    minimum: 0
+                    description: bans deleted
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/players/{userId}:
     get:
@@ -516,3 +600,57 @@ components:
                     - { $ref: "#/components/schemas/UnixTime" }
                 severity: { type: integer }
                 category: { $ref: "#/components/schemas/BanCategory" }
+
+    AdminServer:
+      type: object
+      required: [serverId, address, port, createdAt, revokedAt, bans, lastStatsDay]
+      properties:
+        serverId: { $ref: "#/components/schemas/ServerId" }
+        address: { type: string }
+        port: { type: integer }
+        createdAt: { $ref: "#/components/schemas/UnixTime" }
+        revokedAt:
+          oneOf:
+            - type: "null"
+            - { $ref: "#/components/schemas/UnixTime" }
+        bans:
+          type: integer
+          minimum: 0
+          description: ban reports stored from this server
+        lastStatsDay:
+          description: newest stored stats day, `null` if none
+          oneOf:
+            - type: "null"
+            - { type: string, format: date }
+
+    AdminReport:
+      type: object
+      required:
+        [reportId, serverId, clientRef, at, expiresAt, severity, category, receivedAt, pardonedAt]
+      properties:
+        reportId: { type: string }
+        serverId: { $ref: "#/components/schemas/ServerId" }
+        clientRef: { type: string }
+        at: { $ref: "#/components/schemas/UnixTime" }
+        expiresAt:
+          description: "`null` = permanent"
+          oneOf:
+            - type: "null"
+            - { $ref: "#/components/schemas/UnixTime" }
+        severity: { type: integer }
+        category: { $ref: "#/components/schemas/BanCategory" }
+        receivedAt: { $ref: "#/components/schemas/UnixTime" }
+        pardonedAt:
+          description: "`null` = not pardoned"
+          oneOf:
+            - type: "null"
+            - { $ref: "#/components/schemas/UnixTime" }
+
+    PlayerReports:
+      type: object
+      required: [userId, reports]
+      properties:
+        userId: { $ref: "#/components/schemas/UserId" }
+        reports:
+          type: array
+          items: { $ref: "#/components/schemas/AdminReport" }

@@ -30,3 +30,26 @@ SELECT r.server_id, r.at, r.expires_at, r.severity, r.category
     )
   ORDER BY r.at DESC
   LIMIT 1000;
+
+-- name: for_user
+-- admin view: every ban, expired / pardoned / from revoked servers too
+SELECT r.id, r.server_id, r.client_ref, r.at, r.expires_at, r.severity, r.category,
+  r.received_at,
+  (SELECT MIN(p.at) FROM reports p WHERE p.kind = 'pardon' AND p.target_id = r.id) AS pardoned_at
+  FROM reports r
+  WHERE r.kind = 'ban' AND r.user_id = :userId
+  ORDER BY r.at DESC, r.id DESC;
+
+-- name: drop_user_pardons
+DELETE FROM reports WHERE kind = 'pardon' AND target_id IN (
+  SELECT id FROM reports WHERE kind = 'ban' AND user_id = :userId
+);
+
+-- name: drop_user_bans
+DELETE FROM reports WHERE kind = 'ban' AND user_id = :userId;
+
+-- name: drop_pardons_of
+DELETE FROM reports WHERE kind = 'pardon' AND target_id = :id;
+
+-- name: drop_ban
+DELETE FROM reports WHERE kind = 'ban' AND id = :id;

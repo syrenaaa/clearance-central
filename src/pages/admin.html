@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>admin · clearance-central</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/admin.js"></script>
+  </head>
+  <body>
+    <main class="wide">
+      <h1>admin</h1>
+
+      <form id="unlock">
+        <p class="mute">
+          the admin key (<code>CENTRAL_ADMIN_KEY</code>) stays in this tab only and is gone when
+          you close it.
+        </p>
+        <div class="row">
+          <input id="key" type="password" autocomplete="current-password" placeholder="admin key"
+            required />
+          <button>unlock</button>
+        </div>
+        <p id="unlock-err" class="bad" hidden></p>
+      </form>
+
+      <div id="app" hidden>
+        <nav>
+          <a href="#" id="lock">lock</a> · <a href="/">home</a> ·
+          <a href="/docs#tag/admin">api</a>
+        </nav>
+
+        <h2>servers</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>server</th>
+              <th>address</th>
+              <th>since</th>
+              <th>bans</th>
+              <th>last stats</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="servers"></tbody>
+        </table>
+
+        <form id="register">
+          <div class="row">
+            <input id="addr" placeholder="address" required />
+            <input id="port" type="number" min="1" max="65535" value="7777" required />
+            <button>register</button>
+          </div>
+          <p class="mute">
+            registering an address that already has a live server gives it a new key.
+          </p>
+        </form>
+        <div id="newkey" class="tldr" hidden>
+          <p>
+            api key for <code id="newkey-for"></code>, shown once. put it in the plugin config as
+            <code>CentralKey</code>:
+          </p>
+          <p><code id="newkey-val" class="key"></code></p>
+          <div class="row">
+            <button id="copy" type="button">copy</button>
+            <button id="hide" type="button">done</button>
+          </div>
+        </div>
+
+        <h2>player reports</h2>
+        <form id="lookup">
+          <div class="row">
+            <input id="uid" placeholder="76561198000000000@steam" required />
+            <button>look up</button>
+          </div>
+        </form>
+        <p id="player-status" class="mute" hidden></p>
+        <div id="player" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th>banned</th>
+                <th>until</th>
+                <th>sev</th>
+                <th>category</th>
+                <th>server</th>
+                <th>state</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="reports"></tbody>
+          </table>
+          <div class="row">
+            <button id="erase" type="button" class="bad">erase all for this player</button>
+          </div>
+          <p class="mute">
+            for privacy requests. a deleted ban comes back if the server reports it again, so fix it
+            there too.
+          </p>
+        </div>
+
+        <p id="err" class="bad" hidden></p>
+      </div>
+    </main>
+  </body>
+</html>

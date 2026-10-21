@@ -11,3 +11,11 @@ INSERT INTO servers (id, key_hash, address, port, created_at)
 
 -- name: revoke
 UPDATE servers SET revoked_at = :now WHERE id = :id AND revoked_at IS NULL;
+
+-- name: list
+-- admin view, newest first, revoked included
+SELECT s.id, s.address, s.port, s.created_at, s.revoked_at,
+  (SELECT COUNT(*) FROM reports r WHERE r.server_id = s.id AND r.kind = 'ban') AS bans,
+  (SELECT MAX(d.day) FROM stats_days d WHERE d.server_id = s.id) AS last_stats_day
+  FROM servers s
+  ORDER BY s.created_at DESC, s.id DESC;
