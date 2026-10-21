@@ -116,7 +116,6 @@ td.bar span {
   display: block;
   height: .6rem;
   background: var(--link);
-  border-radius: 1px;
 }
 table + p {
   margin-top: .75rem;
@@ -153,7 +152,6 @@ h2 + h3 {
   margin: 2rem 0;
   padding: .25rem 1rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 4px;
 }
 .tldr h2 {
   margin-top: .75rem;
@@ -188,7 +186,6 @@ button {
   color: inherit;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 4px;
   padding: .2rem .6rem;
 }
 input {
@@ -211,8 +208,13 @@ button {
 button:hover {
   border-color: var(--link);
 }
+/* row actions are plain text links, no box near the table lines */
 td button {
-  padding: 0 .4rem;
+  border: 0;
+  padding: 0;
+}
+td button:hover {
+  text-decoration: underline;
 }
 .bad,
 button.bad {
@@ -230,9 +232,12 @@ code.key {
 main.wide th,
 main.wide td {
   text-align: left;
+  padding: .35rem 1rem .35rem 0;
 }
+main.wide th:last-child,
 main.wide td:last-child {
   text-align: right;
+  padding-right: 0;
 }
 table + form,
 table + .row {
