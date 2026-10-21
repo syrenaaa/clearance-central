@@ -12,7 +12,8 @@ info:
     - any route may 500 with an `Error` body. the plugin retries writes on 5xx, fails open on lookups
     - only claims are rate limited (429)
 
-    `/` is the index page, `/docs` this reference, `/openapi.yaml` the raw spec.
+    `/` is the index page, `/stats` the network stats, `/docs` this reference, `/openapi.yaml` the
+    raw spec.
 servers:
   - url: https://sl-clearance.val.run
 security:
@@ -162,6 +163,9 @@ paths:
         only days where at least 5 live servers stored stats are summed. otherwise a server could
         subtract its own upload from a small day and read off another server's numbers. days
         below that are left out, not partially counted.
+
+        public, no key needed: it's counts only, and it backs the `/stats` page.
+      security: []
       parameters:
         - name: from
           in: query
@@ -178,7 +182,6 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/NetworkStats" }
         "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
 
   /v1/reports:
     post:

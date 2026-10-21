@@ -4,68 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>clearance-central</title>
-    <style>
-    :root {
-      color-scheme: light dark;
-      --fg: #1d1d1f;
-      --mute: #6e6e73;
-      --bg: #fbfbfa;
-      --link: #7c3aed;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --fg: #e8e8e6;
-        --mute: #9a9a98;
-        --bg: #141414;
-        --link: #b79cff;
-      }
-    }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font: 15px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    }
-    main {
-      max-width: 36rem;
-      margin: 0 auto;
-      padding: 4rem 1rem;
-    }
-    h1 {
-      font-size: 1.1rem;
-      margin: 0 0 1rem;
-      color: var(--link);
-    }
-    p {
-      margin: 0 0 1rem;
-    }
-    .mute {
-      color: var(--mute);
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 2rem 0 0;
-    }
-    li {
-      margin: .25rem 0;
-    }
-    li::before {
-      content: "-> ";
-      color: var(--mute);
-    }
-    a {
-      color: var(--link);
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    ::selection {
-      background: var(--link);
-      color: var(--bg);
-    }
-    </style>
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <main>
@@ -81,6 +20,7 @@
       </p>
       <p class="mute">not affiliated with northwood studios.</p>
       <ul>
+        <li><a href="/stats">network stats</a></li>
         <li><a href="/docs">api docs</a></li>
         <li><a href="/openapi.yaml">openapi.yaml</a></li>
         <li><a href="https://github.com/syrenaaa/clearance">syrenaaa/clearance</a></li>

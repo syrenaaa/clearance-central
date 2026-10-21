@@ -24,16 +24,19 @@ Deno.test("database errors become a 500 the plugin can retry", async () => {
   }
 });
 
-Deno.test("pages: index, scalar ui and the spec, no auth, no db", async () => {
+Deno.test("pages: index, stats, scalar ui, css and the spec, no auth, no db", async () => {
   const h = harness();
   await h.sql.execute({ sql: "DROP TABLE IF EXISTS servers", args: [] });
-  for (const path of ["/", "/docs"]) {
+  for (const path of ["/", "/stats", "/docs"]) {
     const page = await h.request("GET", path);
     assertEquals(page.status, 200, path);
     assertEquals(page.headers.get("content-type"), "text/html; charset=utf-8");
   }
   assert(String((await h.request("GET", "/")).body).includes('href="/docs"'));
   assert(String((await h.request("GET", "/docs")).body).includes("createApiReference"));
+  assert(String((await h.request("GET", "/stats")).body).includes("/v1/stats/network"));
+  const css = await h.request("GET", "/style.css");
+  assertEquals(css.headers.get("content-type"), "text/css; charset=utf-8");
   const yaml = await h.request("GET", "/openapi.yaml");
   assertEquals(yaml.status, 200);
   assertEquals(yaml.body, spec);

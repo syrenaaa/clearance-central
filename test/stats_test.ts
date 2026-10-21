@@ -103,3 +103,11 @@ Deno.test("stats: validation", async () => {
   assertEquals((await range("from=2025-01-01&to=2026-06-01")).status, 400);
   assertEquals((await range("from=2026-06-01")).status, 400);
 });
+
+Deno.test("stats: network sums are public, uploads aren't", async () => {
+  const h = harness();
+  const r = await h.request("GET", "/v1/stats/network?from=2026-06-01&to=2026-06-15");
+  assertEquals(r.status, 200);
+  assertEquals((r.body as { days: number }).days, 0);
+  assertEquals((await h.request("PUT", "/v1/stats/2026-06-14", { body: stats() })).status, 401);
+});

@@ -1,6 +1,6 @@
 /** /v1/stats: daily uploads + network sums */
 
-import type { Route } from "jsr:@std/http@^1.1.4/unstable-route";
+import type { Handler, Route } from "jsr:@std/http@^1.1.4/unstable-route";
 import type { ServerHandler } from "../auth.ts";
 import * as db from "../db/mod.ts";
 import * as decode from "../decode/mod.ts";
@@ -38,7 +38,7 @@ export const statsRoutes = ({ sql, now, auth }: Ctx): Route[] => {
     return json(200, keep ? { stored: true } : { stored: false, reason: "too_few_checks" });
   };
 
-  const getNetworkStats: ServerHandler = async (req) => {
+  const getNetworkStats: Handler = async (req) => {
     const q = new URL(req.url).searchParams;
     const from = decode.day(q.get("from") ?? undefined, "from");
     if (!from.ok) return invalid("invalid_range", from.error);
@@ -55,7 +55,7 @@ export const statsRoutes = ({ sql, now, auth }: Ctx): Route[] => {
     {
       method: "GET",
       pattern: pattern("/v1/stats/network"),
-      handler: auth.asServer(getNetworkStats),
+      handler: getNetworkStats,
     },
     { method: "PUT", pattern: pattern("/v1/stats/:day"), handler: auth.asServer(putStats) },
   ];

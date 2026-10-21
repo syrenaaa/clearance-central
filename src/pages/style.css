@@ -1,0 +1,124 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1d1d1f;
+  --mute: #6e6e73;
+  --line: #e4e4e2;
+  --bg: #fbfbfa;
+  --link: #7c3aed;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8e8e6;
+    --mute: #9a9a98;
+    --line: #2a2a2a;
+    --bg: #141414;
+    --link: #b79cff;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+main {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+}
+h1 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+  color: var(--link);
+}
+h2 {
+  font-size: 1rem;
+  font-weight: normal;
+  margin: 2.5rem 0 .75rem;
+  color: var(--mute);
+}
+p {
+  margin: 0 0 1rem;
+}
+.mute {
+  color: var(--mute);
+}
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0 0;
+}
+li {
+  margin: .25rem 0;
+}
+li::before {
+  content: "-> ";
+  color: var(--mute);
+}
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+::selection {
+  background: var(--link);
+  color: var(--bg);
+}
+
+/* stats */
+nav {
+  margin: 0 0 1.5rem;
+  color: var(--mute);
+}
+nav a[aria-current] {
+  color: var(--fg);
+  text-decoration: underline;
+}
+.big {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.big b {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: normal;
+  color: var(--link);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+th,
+td {
+  padding: .15rem .5rem .15rem 0;
+  text-align: right;
+  white-space: nowrap;
+}
+th {
+  font-weight: normal;
+  color: var(--mute);
+  border-bottom: 1px solid var(--line);
+}
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+td.bar {
+  width: 40%;
+}
+td.bar span {
+  display: block;
+  height: .6rem;
+  background: var(--link);
+  border-radius: 1px;
+}
+table + p {
+  margin-top: .75rem;
+}
+footer {
+  margin-top: 3rem;
+}
