@@ -2,7 +2,7 @@ import { assertEquals, assertMatch } from "jsr:@std/assert@^1.0.19";
 import { RETENTION_SECONDS } from "../src/limits.ts";
 import { purge } from "../src/db/mod.ts";
 import type { UnixTime } from "../src/types.ts";
-import { ban, harness, T0 } from "./helpers.ts";
+import { ban, harness, stats, T0 } from "./helpers.ts";
 
 Deno.test("reports: bans are idempotent per clientRef", async () => {
   const h = harness();
@@ -57,6 +57,9 @@ Deno.test("reports: validation", async () => {
 
   assertEquals((await post(ban({ kind: "warn" }))).status, 400);
   assertEquals((await post(ban({ severity: 6 }))).status, 400);
+  assertEquals((await post(ban({ duration: undefined }))).status, 400); // required, null = permanent
+  assertEquals((await post(ban({ duration: 0 }))).status, 400);
+  assertEquals((await post(ban({ duration: "1h" }))).status, 400);
   assertEquals((await post(ban({ category: "rudeness" }))).status, 400);
   assertEquals((await post(ban({ category: "exploiting" }))).status, 400);
   assertEquals((await post(ban({ userId: "someone" }))).status, 400);
@@ -92,7 +95,7 @@ Deno.test("players: facts across servers", async () => {
     userId: user,
     distinctServers: 2,
     activeBans: 3,
-    lastBan: { at: T0 - 100, severity: 5, category: "ban_evasion" },
+    lastBan: { at: T0 - 100, expiresAt: null, severity: 5, category: "ban_evasion" },
   });
 
   const nobody = await h.request("GET", "/v1/players/2@discord", { key: c.apiKey });
@@ -103,6 +106,32 @@ Deno.test("players: facts across servers", async () => {
     lastBan: null,
   });
   assertEquals((await h.request("GET", "/v1/players/nobody", { key: c.apiKey })).status, 400);
+});
+
+Deno.test("players: expired bans stop counting", async () => {
+  const h = harness();
+  const a = await h.register();
+  const user = "/v1/players/76561198000000001@steam";
+  await h.request("POST", "/v1/reports", {
+    key: a.apiKey,
+    body: ban({ at: T0 - 600, duration: 3600 }),
+  });
+  // already over when it arrives (queued while offline): accepted, never counts
+  await h.request("POST", "/v1/reports", {
+    key: a.apiKey,
+    body: ban({ clientRef: "p-2", at: T0 - 7200, duration: 60 }),
+  });
+  const running = await h.request("GET", user, { key: a.apiKey });
+  assertEquals(running.body, {
+    userId: "76561198000000001@steam",
+    distinctServers: 1,
+    activeBans: 1,
+    lastBan: { at: T0 - 600, expiresAt: T0 + 3000, severity: 3, category: "cheating" },
+  });
+
+  h.clock.now = T0 + 3000;
+  const over = await h.request("GET", user, { key: a.apiKey });
+  assertEquals((over.body as { activeBans: number }).activeBans, 0);
 });
 
 Deno.test("retention: old bans stop counting and get purged", async () => {
@@ -119,6 +148,9 @@ Deno.test("retention: old bans stop counting and get purged", async () => {
     body: ban({ clientRef: "p-2", at: T0 }),
   });
 
+  await h.request("PUT", "/v1/stats/2026-06-14", { key: a.apiKey, body: stats() });
+  await h.request("PUT", "/v1/stats/2026-06-15", { key: a.apiKey, body: stats() });
+
   h.clock.now = T0 + RETENTION_SECONDS;
   const facts = await h.request("GET", "/v1/players/76561198000000001@steam", { key: a.apiKey });
   assertEquals((facts.body as { activeBans: number }).activeBans, 1);
@@ -126,4 +158,7 @@ Deno.test("retention: old bans stop counting and get purged", async () => {
   await purge(h.sql, (h.clock.now - RETENTION_SECONDS) as UnixTime, h.clock.now as UnixTime);
   const { rows } = await h.sql.execute({ sql: "SELECT kind FROM reports", args: [] });
   assertEquals(rows.map((r) => r.kind), ["ban"]);
+  // stats days age out the same way
+  const days = await h.sql.execute({ sql: "SELECT day FROM stats_days", args: [] });
+  assertEquals(days.rows.map((r) => r.day), ["2026-06-15"]);
 });

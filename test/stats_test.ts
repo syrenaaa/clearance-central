@@ -1,36 +1,54 @@
 import { assertEquals } from "jsr:@std/assert@^1.0.19";
+import { MIN_SERVERS } from "../src/limits.ts";
 import { ADMIN_KEY, harness, stats } from "./helpers.ts";
+
+const network = (h: ReturnType<typeof harness>, key: string, from: string, to = from) =>
+  h.request("GET", `/v1/stats/network?from=${from}&to=${to}`, { key }).then((r) =>
+    r.body as { servers: number; days: number; checks: object }
+  );
 
 Deno.test("stats: stores, replaces and sums days", async () => {
   const h = harness();
-  const a = await h.register();
-  const b = await h.register();
+  const [a, ...rest] = await h.registerMany(MIN_SERVERS);
 
-  const put = await h.request("PUT", "/v1/stats/2026-06-14", { key: a.apiKey, body: stats() });
+  const put = await h.request("PUT", "/v1/stats/2026-06-14", { key: a!.apiKey, body: stats() });
   assertEquals(put.status, 200);
   assertEquals(put.body, { stored: true });
   // re-upload replaces, doesn't add
-  await h.request("PUT", "/v1/stats/2026-06-14", { key: a.apiKey, body: stats() });
-  await h.request("PUT", "/v1/stats/2026-06-15", { key: b.apiKey, body: stats() });
+  await h.request("PUT", "/v1/stats/2026-06-14", { key: a!.apiKey, body: stats() });
+  for (const s of rest) {
+    await h.request("PUT", "/v1/stats/2026-06-14", { key: s.apiKey, body: stats() });
+  }
+  // a lone day is left out
+  await h.request("PUT", "/v1/stats/2026-06-15", { key: a!.apiKey, body: stats() });
 
   const r = await h.request("GET", "/v1/stats/network?from=2026-06-01&to=2026-06-15", {
-    key: a.apiKey,
+    key: a!.apiKey,
   });
   assertEquals(r.status, 200);
   assertEquals(r.body, {
     from: "2026-06-01",
     to: "2026-06-15",
-    servers: 2,
-    checks: { allow: 40, flag: 8, deny: 2, bypass: 4 },
-    scores: { "0": 20, "30": 20, "60": 8, "100": 2 },
-    bansByJoinScore: { "60": 2, "100": 2 },
+    servers: 5,
+    days: 1,
+    checks: { allow: 100, flag: 20, deny: 5, bypass: 10 },
+    scores: { "0": 50, "30": 50, "60": 20, "100": 5 },
+    bansByJoinScore: { "60": 5, "100": 5 },
     banRateByScore: { "0": 0, "30": 0, "60": 0.25, "100": 1 },
   });
+});
 
-  const one = await h.request("GET", "/v1/stats/network?from=2026-06-15&to=2026-06-15", {
-    key: a.apiKey,
-  });
-  assertEquals((one.body as { servers: number }).servers, 1);
+Deno.test("stats: days with too few servers aren't summed, so they can't be differenced", async () => {
+  const h = harness();
+  const servers = await h.registerMany(MIN_SERVERS);
+  for (const s of servers.slice(1)) {
+    await h.request("PUT", "/v1/stats/2026-06-14", { key: s.apiKey, body: stats() });
+  }
+  const key = servers[0]!.apiKey;
+  const few = await network(h, key, "2026-06-14");
+  assertEquals([few.servers, few.days, few.checks], [0, 0, {}]);
+  await h.request("PUT", "/v1/stats/2026-06-14", { key, body: stats() });
+  assertEquals((await network(h, key, "2026-06-14")).days, 1);
 });
 
 Deno.test("stats: small days are accepted, not stored, and clear an earlier upload", async () => {
@@ -43,23 +61,22 @@ Deno.test("stats: small days are accepted, not stored, and clear an earlier uplo
   });
   assertEquals(small.status, 200);
   assertEquals(small.body, { stored: false, reason: "too_few_checks" });
-  const r = await h.request("GET", "/v1/stats/network?from=2026-06-14&to=2026-06-14", {
-    key: a.apiKey,
-  });
-  assertEquals((r.body as { servers: number }).servers, 0);
-  assertEquals((r.body as { checks: object }).checks, {});
+  for (const table of ["stats_days", "stats_counts"]) {
+    const { rows } = await h.sql.execute({ sql: `SELECT COUNT(*) AS n FROM ${table}`, args: [] });
+    assertEquals(Number(rows[0]!.n), 0, table);
+  }
 });
 
 Deno.test("stats: revoked servers don't count", async () => {
   const h = harness();
-  const a = await h.register();
-  const b = await h.register();
-  await h.request("PUT", "/v1/stats/2026-06-14", { key: a.apiKey, body: stats() });
-  await h.request("DELETE", `/v1/servers/${a.serverId}`, { key: ADMIN_KEY });
-  const r = await h.request("GET", "/v1/stats/network?from=2026-06-14&to=2026-06-14", {
-    key: b.apiKey,
-  });
-  assertEquals((r.body as { servers: number }).servers, 0);
+  const servers = await h.registerMany(MIN_SERVERS + 1);
+  for (const s of servers.slice(0, MIN_SERVERS)) {
+    await h.request("PUT", "/v1/stats/2026-06-14", { key: s.apiKey, body: stats() });
+  }
+  const key = servers[MIN_SERVERS]!.apiKey;
+  assertEquals((await network(h, key, "2026-06-14")).servers, MIN_SERVERS);
+  await h.request("DELETE", `/v1/servers/${servers[0]!.serverId}`, { key: ADMIN_KEY });
+  assertEquals((await network(h, key, "2026-06-14")).servers, 0);
 });
 
 Deno.test("stats: validation", async () => {
@@ -70,8 +87,11 @@ Deno.test("stats: validation", async () => {
 
   assertEquals((await put("2026-02-30", stats())).status, 400);
   assertEquals((await put("2026-06-16", stats())).status, 400); // future
+  assertEquals((await put("2024-06-01", stats())).status, 400); // past retention
   assertEquals((await put("2026-06-14", stats({ extra: 1 }))).status, 400);
   assertEquals((await put("2026-06-14", stats({ scores: { "5": 1 } }))).status, 400);
+  // 130 is open ended, the plugin clamps
+  assertEquals((await put("2026-06-14", stats({ scores: { "130": 1 } }))).status, 200);
   assertEquals((await put("2026-06-14", stats({ scores: { "140": 1 } }))).status, 400);
   assertEquals((await put("2026-06-14", stats({ checks: { allow: -1 } }))).status, 400);
   assertEquals((await put("2026-06-14", stats({ checks: { maybe: 1 } }))).status, 400);

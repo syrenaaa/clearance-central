@@ -9,6 +9,7 @@ export type NetworkStats = {
   readonly from: Day;
   readonly to: Day;
   readonly servers: number;
+  readonly days: number;
   readonly checks: CheckCounts;
   readonly scores: Buckets;
   readonly bansByJoinScore: Buckets;
@@ -39,6 +40,7 @@ export const networkStats = (
     from,
     to,
     servers: rows.servers,
+    days: rows.days,
     checks: pick(rows, "check"),
     scores,
     bansByJoinScore,
@@ -52,6 +54,7 @@ export type PlayerFacts = {
   readonly activeBans: number;
   readonly lastBan: null | {
     readonly at: UnixTime;
+    readonly expiresAt: UnixTime | null;
     readonly severity: number;
     readonly category: string;
   };
@@ -67,8 +70,11 @@ export const playerFacts = (
     userId,
     distinctServers: new Set(bans.map((b) => b.serverId)).size,
     activeBans: bans.length,
-    lastBan: last === undefined
-      ? null
-      : { at: last.at, severity: last.severity, category: last.category },
+    lastBan: last === undefined ? null : {
+      at: last.at,
+      expiresAt: last.expiresAt,
+      severity: last.severity,
+      category: last.category,
+    },
   };
 };

@@ -14,9 +14,11 @@ import {
   isRecord,
   join,
   literal,
+  nullable,
   strictObject,
   string,
 } from "./core.ts";
+import { MAX_BAN_SECONDS } from "../limits.ts";
 import { reportId, unixTime, userId } from "./scalars.ts";
 
 const clientRef = string(128);
@@ -26,6 +28,7 @@ const banReport: Decoder<BanReport> = strictObject<BanReport>({
   clientRef,
   userId,
   at: unixTime,
+  duration: nullable(integer(1, MAX_BAN_SECONDS)),
   severity: integer(1, 5),
   category: literal<BanCategory>(BAN_CATEGORIES),
 });

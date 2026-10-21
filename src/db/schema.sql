@@ -71,3 +71,8 @@ CREATE INDEX IF NOT EXISTS reports_ban_user
 
 CREATE INDEX IF NOT EXISTS reports_pardon_target
   ON reports (target_id) WHERE kind = 'pardon';
+
+-- applied migrations.sql sections, see schema.ts
+CREATE TABLE IF NOT EXISTS migrations (
+  name TEXT PRIMARY KEY
+);

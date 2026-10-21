@@ -26,7 +26,7 @@ export const CHECK_OUTCOMES = [
 export type CheckOutcome = typeof CHECK_OUTCOMES[number];
 export type CheckCounts = Readonly<Partial<Record<CheckOutcome, number>>>;
 
-/** bucket lower bounds: 0, 10, ..., 130 */
+/** bucket lower bounds: 0, 10, ..., 130. 130 is open ended */
 export const SCORE_BUCKETS = Array.from({ length: 14 }, (_, i) => i * 10);
 /** counts by bucket, missing = 0 */
 export type ScoreBuckets = Readonly<Record<number, number>>;
@@ -57,6 +57,8 @@ export type BanReport = {
   readonly clientRef: string;
   readonly userId: UserId;
   readonly at: UnixTime;
+  /** secs, null = permanent */
+  readonly duration: number | null;
   readonly severity: number;
   readonly category: BanCategory;
 };

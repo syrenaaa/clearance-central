@@ -21,6 +21,7 @@ export type Harness = {
   ): Promise<{ status: number; body: unknown; headers: Headers }>;
   /** register via the admin route */
   register(address?: string, port?: number): Promise<{ serverId: string; apiKey: string }>;
+  registerMany(n: number): Promise<{ serverId: string; apiKey: string }[]>;
 };
 
 export const harness = (): Harness => {
@@ -69,13 +70,19 @@ export const harness = (): Harness => {
     return r.body as { serverId: string; apiKey: string };
   };
 
-  return { sql, clock, listed, request, register };
+  const registerMany: Harness["registerMany"] = async (n) => {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(await register());
+    return out;
+  };
+
+  return { sql, clock, listed, request, register, registerMany };
 };
 
 export const stats = (overrides: Record<string, unknown> = {}) => ({
   pluginVersion: "1.0.0",
   enforce: true,
-  thresholds: { allowScore: 40, flagScore: 70 },
+  thresholds: { allowScore: 50, flagScore: 20 },
   checks: { allow: 20, flag: 4, deny: 1, bypass: 2 },
   scores: { "0": 10, "30": 10, "60": 4, "100": 1 },
   bansByJoinScore: { "60": 1, "100": 1 },
@@ -87,6 +94,7 @@ export const ban = (overrides: Record<string, unknown> = {}) => ({
   clientRef: "p-1",
   userId: "76561198000000001@steam",
   at: T0 - 3600,
+  duration: null,
   severity: 3,
   category: "cheating",
   ...overrides,

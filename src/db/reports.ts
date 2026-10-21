@@ -23,11 +23,12 @@ export const insertBan = async (
   sql: Sql,
   id: ReportId,
   serverId: ServerId,
-  { clientRef, userId, severity, category, at }: BanReport,
+  { clientRef, userId, severity, category, at, duration }: BanReport,
   now: UnixTime,
 ): Promise<StoredReport> => {
+  const expiresAt = duration === null ? null : at + duration;
   const [, got] = await sql.batch([
-    stmt(Q.insert_ban, { id, serverId, clientRef, userId, severity, category, at, now }),
+    stmt(Q.insert_ban, { id, serverId, clientRef, userId, severity, category, at, expiresAt, now }),
     stmt(Q.by_client_ref, { serverId, kind: "ban", clientRef }),
   ], "write");
   return toStoredReport(got!.rows[0]!);
@@ -53,20 +54,24 @@ export const insertPardon = async (
 export type ActiveBan = {
   readonly serverId: ServerId;
   readonly at: UnixTime;
+  /** null = permanent */
+  readonly expiresAt: UnixTime | null;
   readonly severity: number;
   readonly category: string;
 };
 
-/** unpardoned bans from live servers since `since`, newest first */
+/** running bans from live servers since `since`, newest first */
 export const activeBans = async (
   sql: Sql,
   userId: UserId,
   since: UnixTime,
+  now: UnixTime,
 ): Promise<ActiveBan[]> => {
-  const { rows } = await sql.execute(stmt(Q.active_bans, { userId, since }));
+  const { rows } = await sql.execute(stmt(Q.active_bans, { userId, since, now }));
   return rows.map((r) => ({
     serverId: String(r.server_id) as ServerId,
     at: Number(r.at) as UnixTime,
+    expiresAt: r.expires_at === null ? null : Number(r.expires_at) as UnixTime,
     severity: Number(r.severity),
     category: String(r.category),
   }));

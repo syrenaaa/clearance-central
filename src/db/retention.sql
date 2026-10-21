@@ -7,5 +7,11 @@ DELETE FROM reports WHERE kind = 'pardon' AND target_id IN (
 -- name: drop_bans
 DELETE FROM reports WHERE kind = 'ban' AND at < :before;
 
+-- name: drop_stats_counts
+DELETE FROM stats_counts WHERE day < :beforeDay;
+
+-- name: drop_stats_days
+DELETE FROM stats_days WHERE day < :beforeDay;
+
 -- name: drop_claims
 DELETE FROM claims WHERE expires_at <= :now;

@@ -1,4 +1,4 @@
-/** val town interval entry: report retention purge, run daily */
+/** val town interval entry: retention purge (reports + stats), run daily */
 
 import { sqlite } from "https://esm.town/v/std/sqlite/main.ts";
 import { RETENTION_SECONDS } from "./src/limits.ts";

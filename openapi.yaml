@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: clearance-central
-  version: 0.1.0
+  version: 0.2.0
   description: |
     central server for [clearance](https://github.com/syrenaaa/clearance), a plugin for scp: secret
     laboratory servers. collects anonymous daily stats + shared ban reports.
@@ -10,6 +10,7 @@ info:
     - user ids are trimmed + lowercased, e.g. `76561198000000000@steam`
     - bodies must be `application/json` (else 415), max 16 KiB (else 413)
     - any route may 500 with an `Error` body. the plugin retries writes on 5xx, fails open on lookups
+    - only claims are rate limited (429)
 
     `/` is the index page, `/docs` this reference, `/openapi.yaml` the raw spec.
 servers:
@@ -134,7 +135,7 @@ paths:
         - name: day
           in: path
           required: true
-          description: utc day, `YYYY-MM-DD`, not in the future
+          description: utc day, `YYYY-MM-DD`, not in the future, not older than the retention window (2 years)
           schema: { type: string, format: date }
       requestBody:
         required: true
@@ -149,7 +150,6 @@ paths:
               schema: { $ref: "#/components/schemas/StatsAccepted" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "429": { $ref: "#/components/responses/RateLimited" }
 
   /v1/stats/network:
     get:
@@ -158,6 +158,10 @@ paths:
       description: |
         sums over all live servers in the range (inclusive, max 366 days) + ban rate per score
         bucket. for picking default thresholds and comparing one server to the network.
+
+        only days where at least 5 live servers stored stats are summed. otherwise a server could
+        subtract its own upload from a small day and read off another server's numbers. days
+        below that are left out, not partially counted.
       parameters:
         - name: from
           in: query
@@ -207,7 +211,6 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
-        "429": { $ref: "#/components/responses/RateLimited" }
 
   /v1/players/{userId}:
     get:
@@ -215,7 +218,8 @@ paths:
       summary: network facts about a player
       description: |
         called in pre-auth while the player waits, so it's fast.
-        counts only unpardoned bans from live servers inside the retention window.
+        counts only bans that are still running (not expired, not pardoned) from live servers
+        inside the retention window.
         no reports = zeros, not 404.
       parameters:
         - $ref: "#/components/parameters/UserId"
@@ -273,7 +277,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     RateLimited:
-      description: too many requests. the plugin waits `Retry-After` secs and retries
+      description: too many requests. wait `Retry-After` secs, then retry
       headers:
         Retry-After:
           schema: { type: integer }
@@ -342,7 +346,8 @@ components:
       type: object
       description: |
         counts per score bucket. keys are the bucket's lower bound in steps of 10
-        (`"0"`, `"10"`, ..., `"130"`). missing = 0
+        (`"0"`, `"10"`, ..., `"130"`). `"130"` is open ended: it holds every score >= 130, so the
+        plugin clamps before bucketing. missing = 0
       propertyNames:
         pattern: "^(0|[1-9]0|1[0-3]0)$"
       additionalProperties: { type: integer, minimum: 0 }
@@ -401,13 +406,16 @@ components:
 
     NetworkStats:
       type: object
-      required: [from, to, servers, checks, scores, bansByJoinScore, banRateByScore]
+      required: [from, to, servers, days, checks, scores, bansByJoinScore, banRateByScore]
       properties:
         from: { type: string, format: date }
         to: { type: string, format: date }
         servers:
           type: integer
-          description: servers with at least one stored day in range
+          description: servers with at least one stored day among the summed days
+        days:
+          type: integer
+          description: days in range that had enough servers to be summed
         checks: { $ref: "#/components/schemas/CheckCounts" }
         scores: { $ref: "#/components/schemas/ScoreBuckets" }
         bansByJoinScore: { $ref: "#/components/schemas/ScoreBuckets" }
@@ -434,15 +442,22 @@ components:
 
     BanReport:
       type: object
-      required: [kind, clientRef, userId, at, severity, category]
+      required: [kind, clientRef, userId, at, duration, severity, category]
       additionalProperties: false
       properties:
         kind: { const: ban }
         clientRef:
           type: string
-          description: the plugin's local punishment id
+          description: |
+            unique per server, forever. the plugin uses `<install id>:<punishment id>` so a reset
+            local db can't reuse an old ref (that would silently return the old report)
         userId: { $ref: "#/components/schemas/UserId" }
         at: { $ref: "#/components/schemas/UnixTime" }
+        duration:
+          description: ban length in secs, `null` = permanent. expired bans stop counting
+          oneOf:
+            - type: "null"
+            - { type: integer, minimum: 1, maximum: 3155760000 }
         severity: { type: integer, minimum: 1, maximum: 5 }
         category: { $ref: "#/components/schemas/BanCategory" }
 
@@ -472,21 +487,29 @@ components:
       type: object
       required: [userId, distinctServers, activeBans, lastBan]
       description: |
-        bans only. deliberately no "first seen" or sighting data: tracking joins across
+        running bans only. deliberately no "first seen" or sighting data: tracking joins across
         servers isn't server security
       properties:
         userId: { $ref: "#/components/schemas/UserId" }
         distinctServers:
           type: integer
           minimum: 0
-          description: live servers with an unpardoned ban for this player
-        activeBans: { type: integer, minimum: 0 }
+          description: live servers with a running ban for this player
+        activeBans:
+          type: integer
+          minimum: 0
+          description: running bans, i.e. not expired and not pardoned
         lastBan:
           oneOf:
             - type: "null"
             - type: object
-              required: [at, severity, category]
+              required: [at, expiresAt, severity, category]
               properties:
                 at: { $ref: "#/components/schemas/UnixTime" }
+                expiresAt:
+                  description: "`null` = permanent"
+                  oneOf:
+                    - type: "null"
+                    - { $ref: "#/components/schemas/UnixTime" }
                 severity: { type: integer }
                 category: { $ref: "#/components/schemas/BanCategory" }

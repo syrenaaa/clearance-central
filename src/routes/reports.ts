@@ -40,8 +40,8 @@ export const reportRoutes = ({ sql, now, auth }: Ctx): Route[] => {
   const getPlayer: ServerHandler = async (_req, p) => {
     const userId = decode.userId(pathParam(p.pathname.groups.userId), "userId");
     if (!userId.ok) return invalid("invalid_user_id", userId.error);
-    const since = (now() - RETENTION_SECONDS) as UnixTime;
-    const bans = await db.activeBans(sql, userId.value, since);
+    const t = now();
+    const bans = await db.activeBans(sql, userId.value, (t - RETENTION_SECONDS) as UnixTime, t);
     return json(200, playerFacts(userId.value, bans));
   };
 

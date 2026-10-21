@@ -8,6 +8,10 @@ export const DAY_SECONDS = 86_400;
 export const RETENTION_SECONDS = 730 * DAY_SECONDS;
 /** days below this are accepted, not stored */
 export const MIN_CHECKS = 20;
+/** network sums skip days with fewer live servers, so no one can difference out another server */
+export const MIN_SERVERS = 5;
+/** longest ban duration, 100 years */
+export const MAX_BAN_SECONDS = 3_155_760_000;
 /** max client clock drift into the future */
 export const CLOCK_SKEW_SECONDS = 300;
 export const MAX_RANGE_DAYS = 366;

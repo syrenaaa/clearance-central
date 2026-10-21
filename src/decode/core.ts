@@ -26,6 +26,9 @@ export const integer = (min: number, max: number): Decoder<number> => (input, pa
 export const boolean: Decoder<boolean> = (input, path) =>
   typeof input === "boolean" ? ok(input) : fail(path, "must be a boolean");
 
+export const nullable = <T>(d: Decoder<T>): Decoder<T | null> => (input, path) =>
+  input === null ? ok(null) : d(input, path);
+
 export const literal =
   <const T extends string>(values: readonly T[]): Decoder<T> => (input, path) =>
     typeof input === "string" && (values as readonly string[]).includes(input)

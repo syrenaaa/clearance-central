@@ -6,7 +6,15 @@ import * as db from "../db/mod.ts";
 import * as decode from "../decode/mod.ts";
 import { networkStats } from "../facts.ts";
 import { fail, invalid, json, pathParam, pattern, readJson } from "../http.ts";
-import { CLOCK_SKEW_SECONDS, daySpan, MAX_RANGE_DAYS, MIN_CHECKS, utcDay } from "../limits.ts";
+import {
+  CLOCK_SKEW_SECONDS,
+  daySpan,
+  MAX_RANGE_DAYS,
+  MIN_CHECKS,
+  MIN_SERVERS,
+  RETENTION_SECONDS,
+  utcDay,
+} from "../limits.ts";
 import type { Ctx } from "./ctx.ts";
 
 export const statsRoutes = ({ sql, now, auth }: Ctx): Route[] => {
@@ -15,6 +23,9 @@ export const statsRoutes = ({ sql, now, auth }: Ctx): Route[] => {
     if (!day.ok) return invalid("invalid_day", day.error);
     if (day.value > utcDay(now() + CLOCK_SKEW_SECONDS)) {
       return fail(400, "invalid_day", "day is in the future");
+    }
+    if (day.value < utcDay(now() - RETENTION_SECONDS)) {
+      return fail(400, "invalid_day", "day is older than the retention window");
     }
     const body = await readJson(req);
     if (!body.ok) return body.error;
@@ -36,7 +47,7 @@ export const statsRoutes = ({ sql, now, auth }: Ctx): Route[] => {
     const span = daySpan(from.value, to.value);
     if (span < 0) return fail(400, "invalid_range", "from is after to");
     if (span >= MAX_RANGE_DAYS) return fail(400, "invalid_range", `at most ${MAX_RANGE_DAYS} days`);
-    const rows = await db.sumStats(sql, from.value, to.value);
+    const rows = await db.sumStats(sql, from.value, to.value, MIN_SERVERS);
     return json(200, networkStats(from.value, to.value, rows));
   };
 

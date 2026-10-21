@@ -13,13 +13,25 @@ INSERT INTO stats_days
 INSERT INTO stats_counts (server_id, day, metric, key, n)
   VALUES (:serverId, :day, :metric, :key, :n);
 
+-- days with >= :minServers live servers are the only ones summed (no differencing)
+
 -- name: count_servers
-SELECT COUNT(DISTINCT d.server_id) AS servers
-  FROM stats_days d JOIN servers s ON s.id = d.server_id
-  WHERE s.revoked_at IS NULL AND d.day BETWEEN :from AND :to;
+WITH live AS (
+  SELECT d.server_id, d.day FROM stats_days d JOIN servers s ON s.id = d.server_id
+    WHERE s.revoked_at IS NULL AND d.day BETWEEN :from AND :to
+), days AS (
+  SELECT day FROM live GROUP BY day HAVING COUNT(*) >= :minServers
+)
+SELECT COUNT(DISTINCT server_id) AS servers, (SELECT COUNT(*) FROM days) AS days
+  FROM live WHERE day IN (SELECT day FROM days);
 
 -- name: sum_counts
+WITH days AS (
+  SELECT d.day FROM stats_days d JOIN servers s ON s.id = d.server_id
+    WHERE s.revoked_at IS NULL AND d.day BETWEEN :from AND :to
+    GROUP BY d.day HAVING COUNT(*) >= :minServers
+)
 SELECT c.metric, c.key, SUM(c.n) AS n
   FROM stats_counts c JOIN servers s ON s.id = c.server_id
-  WHERE s.revoked_at IS NULL AND c.day BETWEEN :from AND :to
+  WHERE s.revoked_at IS NULL AND c.day IN (SELECT day FROM days)
   GROUP BY c.metric, c.key;

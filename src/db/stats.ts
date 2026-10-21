@@ -61,17 +61,24 @@ export const replaceStatsDay = async (
 
 export type NetworkRows = {
   readonly servers: number;
+  readonly days: number;
   readonly counts: readonly CountRow[];
 };
 
-/** sums over live servers, `from`..`to` inclusive */
-export const sumStats = async (sql: Sql, from: Day, to: Day): Promise<NetworkRows> => {
+/** sums over live servers, `from`..`to` inclusive, days with >= `minServers` only */
+export const sumStats = async (
+  sql: Sql,
+  from: Day,
+  to: Day,
+  minServers: number,
+): Promise<NetworkRows> => {
   const [servers, counts] = await sql.batch([
-    stmt(Q.count_servers, { from, to }),
-    stmt(Q.sum_counts, { from, to }),
+    stmt(Q.count_servers, { from, to, minServers }),
+    stmt(Q.sum_counts, { from, to, minServers }),
   ], "read");
   return {
     servers: Number(servers!.rows[0]?.servers ?? 0),
+    days: Number(servers!.rows[0]?.days ?? 0),
     counts: counts!.rows.map((r) => ({
       metric: String(r.metric) as Metric,
       key: String(r.key),
