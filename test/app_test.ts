@@ -27,7 +27,7 @@ Deno.test("database errors become a 500 the plugin can retry", async () => {
 Deno.test("pages: index, stats, scalar ui, css and the spec, no auth, no db", async () => {
   const h = harness();
   await h.sql.execute({ sql: "DROP TABLE IF EXISTS servers", args: [] });
-  for (const path of ["/", "/stats", "/docs"]) {
+  for (const path of ["/", "/stats", "/privacy", "/docs"]) {
     const page = await h.request("GET", path);
     assertEquals(page.status, 200, path);
     assertEquals(page.headers.get("content-type"), "text/html; charset=utf-8");
@@ -40,4 +40,10 @@ Deno.test("pages: index, stats, scalar ui, css and the spec, no auth, no db", as
   const yaml = await h.request("GET", "/openapi.yaml");
   assertEquals(yaml.status, 200);
   assertEquals(yaml.body, spec);
+});
+
+Deno.test("privacy policy has no unfilled placeholders", async () => {
+  const page = await harness().request("GET", "/privacy");
+  const left = String(page.body).match(/\[\[\w+\]\]/g) ?? [];
+  assertEquals(left, [], "fill these in before deploying");
 });

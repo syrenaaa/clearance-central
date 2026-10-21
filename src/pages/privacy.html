@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>privacy · clearance-central</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>privacy policy</h1>
+      <p class="mute">Last updated: <time datetime="2026-10-21">October 21, 2026</time></p>
+
+      <p>
+        <a href="https://github.com/syrenaaa/clearance">Clearance</a> is a plugin for SCP: Secret
+        Laboratory game servers that checks joining players' accounts. clearance-central is an
+        optional service that lets servers running it share ban reports and anonymous statistics.
+        They are run by different people, so this policy has two parts:
+        <a href="#plugin">what the plugin stores on each game server</a>, and
+        <a href="#central">what the central server stores</a>.
+      </p>
+
+      <section class="tldr" aria-labelledby="tldr">
+        <h2 id="tldr">tl;dr</h2>
+        <ul>
+          <li>
+            Each game server keeps its own records about you, like play time, Steam profile
+            details, check results and bans. That server's staff are responsible for them.
+          </li>
+          <li>
+            If you have Do Not Track on, a server forgets your play time, Steam data and check
+            results when you leave, unless you opt in with <code>.trackme</code>.
+          </li>
+          <li>
+            The central server only stores <b>bans</b>: your account id, when the ban was issued,
+            how long it lasts, and a severity and category. It never stores names, IP addresses,
+            chat, play time, Steam data or scores.
+          </li>
+          <li>
+            When you join, the server can ask how many running bans you have on other servers. It
+            doesn't learn which servers they were, and it decides for itself what to do with the
+            answer.
+          </li>
+          <li>
+            Statistics are counts only, with no account ids. Ban reports are deleted after 2 years.
+          </li>
+          <li>
+            To see, fix or delete your data, ask the game server's staff about part 1, or
+            furry&lt;at&gt;furry.coffee about part 2.
+          </li>
+        </ul>
+      </section>
+
+      <h2 id="plugin">part 1: on each game server (the plugin)</h2>
+
+      <h3>who is responsible</h3>
+      <p>
+        The plugin runs on game servers owned by independent operators. Each operator is the data
+        controller for what the plugin stores on their server; contact that server's staff (for
+        example through its Discord or website) with questions about it. The authors of Clearance
+        do not receive this data.
+      </p>
+
+      <h3>what the plugin stores</h3>
+      <p>When you join a server running Clearance, it may store, on that server:</p>
+      <ul>
+        <li>
+          your account id, when you were first and last seen, how often you joined, and how long
+          you played there
+        </li>
+        <li>
+          details from your Steam account, fetched through the Steam Web API: whether the profile
+          is public, account creation date, Steam level, number of games owned, SCP: SL play time,
+          and whether the account has VAC or game bans (and how long ago)
+        </li>
+        <li>
+          a log of each check: the score, the outcome (allowed, flagged, rejected) and how the score
+          was calculated
+        </li>
+        <li>
+          staff actions: bans (including reason, length and who issued them), pardons, the
+          allowlist, sponsorships between players, and strikes against sponsors
+        </li>
+        <li>whether you used <code>.trackme</code>, and when</li>
+      </ul>
+      <p>
+        This is used to keep alternate accounts and banned players out, and to let trusted players
+        vouch for new ones. The legal basis is the server's legitimate interest in protecting its
+        community (Art. 6(1)(f) GDPR). Scores and Steam data stay on the server. They are never
+        sent to the central server.
+      </p>
+
+      <h3>do not track</h3>
+      <p>
+        If Do Not Track is on in your game settings, you are still checked when you join, but your
+        play time, Steam data and check log are deleted from the server when you leave (a copy of
+        the Steam data stays in the server's memory for up to 12 hours by default, so it doesn't
+        have to be fetched again if you rejoin). Moderation
+        records (bans, pardons, the allowlist, sponsorships and strikes) are kept, because they are
+        needed for server security. You can opt in to tracking with <code>.trackme</code> in the
+        console, so that your play time counts towards your score, and opt out again with
+        <code>.untrackme</code>, which also deletes what was tracked.
+      </p>
+
+      <h3>what leaves the server</h3>
+      <ul>
+        <li>
+          <b>Steam:</b> your Steam id is sent to Valve's Steam Web API to look up the details above
+        </li>
+        <li>
+          <b>Discord</b> (if the server sets it up): messages in the server's staff Discord channel
+          that include your account id when you are rejected or flagged (with your score and how it
+          was calculated), when you are new and couldn't be checked, when you sponsor or are
+          sponsored, and when staff act on your account (bans, pardons, allowlist changes,
+          including any reason staff entered)
+        </li>
+        <li>
+          <b>the central server</b> (if the server takes part): your account id when you join, to
+          look up running bans; your bans of at least a day (by default), and their pardons; and, if the server
+          opts in, daily counts with no account ids. See part 2
+        </li>
+      </ul>
+
+      <h3>how long it is kept</h3>
+      <p>
+        Apart from the Do Not Track deletion above, the plugin keeps its records until the server's
+        staff delete them. Ask the server you played on how long they keep them.
+      </p>
+
+      <h2 id="central">part 2: the central server (clearance-central)</h2>
+
+      <h3>who is responsible</h3>
+      <p>
+        The data controller for the central server is
+        <a href="https://github.com/syrenaaa">syrenaaa</a>. Contact: furry&lt;at&gt;furry.coffee (replace
+        &lt;at&gt; with @). This service is not affiliated with or endorsed by
+        Northwood Studios.
+      </p>
+
+      <h3>what we store about players</h3>
+      <p>Only ban reports, sent by the game server that issued the ban. A report contains:</p>
+      <ul>
+        <li>your platform account id (Steam, Discord or Northwood id)</li>
+        <li>when the ban was issued and when it expires (or that it is permanent)</li>
+        <li>
+          a severity from 1 to 5 and a category (cheating, griefing, harassment, ban evasion or
+          other)
+        </li>
+        <li>which participating server sent it, and that server's own reference for the ban</li>
+        <li>whether the ban was later pardoned</li>
+      </ul>
+      <p>
+        We do not store names, IP addresses, chat messages, ban reasons, play time, Steam profile
+        data, or the scores the plugin computes. When a server looks up your account id as you join,
+        we answer and do not store the lookup, so we keep no "first seen" or join history.
+      </p>
+
+      <h3>why, and on what legal basis</h3>
+      <p>
+        Ban reports are used to protect game servers against cheaters, harassment and ban evasion.
+        The legal basis is legitimate interests (Art. 6(1)(f) GDPR): the interest of server
+        operators and their players in a safe community. Ban reports are kept to the minimum needed
+        for that purpose and are not used for advertising, profiling or anything else.
+      </p>
+
+      <h3>who can see it</h3>
+      <p>
+        When you join a participating server, that server can ask us about your account id. It
+        receives only a summary: how many running bans you have, from how many different servers,
+        and the date, expiry, severity and category of the most recent one. It does not learn which
+        servers banned you. Expired and pardoned bans are not counted. Each server decides for
+        itself what, if anything, to do with that summary; we never tell a server to allow or
+        reject anyone.
+      </p>
+      <p>
+        Only registered servers can make these requests. When a server's access is revoked, its
+        reports stop being shown.
+      </p>
+
+      <h3>what we store about server operators</h3>
+      <p>
+        For each participating server: its public address and port (as listed on the SCP: SL server
+        list), when it joined, whether its access was revoked, and a one-way hash of its API key. If
+        you host a server from a home connection, that address may identify you; it is used only to
+        verify and manage the server's access and is never shown to other servers.
+      </p>
+
+      <h3>statistics</h3>
+      <p>
+        Servers that opt in also upload daily counts (for example, how many joins were allowed or
+        flagged, and how many fell into each score range). These contain no account ids and no
+        personal data. Days with fewer than 20 checks are not stored, and counts are only published
+        as sums over days where at least five servers reported, on the
+        <a href="/stats">stats page</a>.
+      </p>
+
+      <h3>how long we keep it</h3>
+      <ul>
+        <li>
+          ban reports: deleted automatically 2 years after the ban was issued, together with any
+          pardon
+        </li>
+        <li>daily statistics: deleted automatically after 2 years</li>
+        <li>server ownership claims: deleted after 1 hour</li>
+      </ul>
+
+      <h3>where it is hosted</h3>
+      <p>
+        The service runs on <a href="https://www.val.town">Val Town</a>, which stores the database
+        and may be located outside your country, including in the United States. Like any web host,
+        Val Town and its network providers process technical request data to deliver and protect
+        the service, such as the requesting server's IP address and the requested address (which,
+        for a lookup, contains your account id). This may appear in their short-term logs; we do
+        not store it in our database.
+      </p>
+
+      <h3>your rights</h3>
+      <p>
+        Under the GDPR you can ask to see the reports stored about your account, have incorrect ones
+        corrected, have them deleted, or object to their processing. Email
+        furry&lt;at&gt;furry.coffee with your account id. We will ask you to prove you
+        own the account before acting, and we reply within one month. If a report came from a
+        server you think banned you unfairly, you can also contact that server directly; a pardon
+        from them removes the ban from the summary.
+      </p>
+      <p>
+        You can also complain to a data protection authority in the country where you live.
+      </p>
+
+      <h2>changes</h2>
+      <p>If this policy changes, the new version will be posted here with a new date.</p>
+
+      <footer class="mute">
+        <a href="/">home</a> · <a href="/stats">stats</a> · <a href="/docs">api</a>
+      </footer>
+    </main>
+  </body>
+</html>
