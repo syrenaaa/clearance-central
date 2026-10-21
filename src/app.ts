@@ -3,9 +3,8 @@
 import { type RequestHandler, route } from "jsr:@std/http@^1.1.4/unstable-route";
 import { createAuth } from "./auth.ts";
 import { migrate, type Sql } from "./db/mod.ts";
-import { docsRoutes } from "./docs.ts";
-import { homeRoutes } from "./home.ts";
 import { fail } from "./http.ts";
+import { pageRoutes } from "./pages/routes.ts";
 import type { Ctx } from "./routes/ctx.ts";
 import { reportRoutes } from "./routes/reports.ts";
 import { serverRoutes } from "./routes/servers.ts";
@@ -20,8 +19,6 @@ export type Deps = {
   /** admin routes are 401 while unset */
   readonly adminKey: string | undefined;
   readonly serverList: ServerList;
-  /** openapi.yaml text, served with the docs */
-  readonly spec: () => Promise<string>;
 };
 
 export const createApp = (deps: Deps): RequestHandler => {
@@ -41,7 +38,7 @@ export const createApp = (deps: Deps): RequestHandler => {
   );
 
   // static pages come first so they don't wait on the schema
-  const router = route([...homeRoutes(), ...docsRoutes(deps.spec)], async (req, info) => {
+  const router = route(pageRoutes, async (req, info) => {
     await ready();
     return api(req, info);
   });

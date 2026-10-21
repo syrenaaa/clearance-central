@@ -1,8 +1,11 @@
 /** pending ownership claims */
 
 import type { ServerAddress, ServerId, UnixTime } from "../types.ts";
+import text from "./claims.sql" with { type: "text" };
 import { upsertServer } from "./servers.ts";
-import { type Sql, stmt } from "./sql.ts";
+import { queries, type Sql, stmt } from "./sql.ts";
+
+const Q = queries(text, ["drop_expired", "insert", "find", "drop"]);
 
 export type ClaimLimits = { readonly perAddress: number; readonly total: number };
 
@@ -12,30 +15,16 @@ export type StoredClaim = ServerAddress & { readonly token: string };
 export const insertClaim = async (
   sql: Sql,
   idHash: string,
-  claim: StoredClaim,
+  { token, address, port }: StoredClaim,
   expiresAt: UnixTime,
   now: UnixTime,
-  limits: ClaimLimits,
+  { perAddress, total }: ClaimLimits,
 ): Promise<boolean> => {
-  const [, inserted] = await sql.batch([
-    stmt("DELETE FROM claims WHERE expires_at <= ?", now),
-    stmt(
-      `INSERT INTO claims (id_hash, token, address, port, expires_at)
-        SELECT ?, ?, ?, ?, ?
-        WHERE (SELECT COUNT(*) FROM claims WHERE address = ? AND port = ?) < ?
-          AND (SELECT COUNT(*) FROM claims) < ?`,
-      idHash,
-      claim.token,
-      claim.address,
-      claim.port,
-      expiresAt,
-      claim.address,
-      claim.port,
-      limits.perAddress,
-      limits.total,
-    ),
+  const [, ins] = await sql.batch([
+    stmt(Q.drop_expired, { now }),
+    stmt(Q.insert, { idHash, token, address, port, expiresAt, perAddress, total }),
   ], "write");
-  return inserted!.rowsAffected > 0;
+  return ins!.rowsAffected > 0;
 };
 
 export const findClaim = async (
@@ -43,31 +32,24 @@ export const findClaim = async (
   idHash: string,
   now: UnixTime,
 ): Promise<StoredClaim | undefined> => {
-  const { rows } = await sql.execute(stmt(
-    "SELECT token, address, port FROM claims WHERE id_hash = ? AND expires_at > ?",
-    idHash,
-    now,
-  ));
+  const { rows } = await sql.execute(stmt(Q.find, { idHash, now }));
   const row = rows[0];
-  return row === undefined ? undefined : {
-    token: String(row.token),
-    address: String(row.address),
-    port: Number(row.port),
-  };
+  if (row === undefined) return undefined;
+  return { token: String(row.token), address: String(row.address), port: Number(row.port) };
 };
 
 /** atomically drop the claim + register/re-key the server */
 export const completeClaim = async (
   sql: Sql,
   idHash: string,
-  newId: ServerId,
+  id: ServerId,
   keyHash: string,
   address: ServerAddress,
   now: UnixTime,
 ): Promise<ServerId> => {
-  const [, upserted] = await sql.batch([
-    stmt("DELETE FROM claims WHERE id_hash = ?", idHash),
-    upsertServer(newId, keyHash, address, now),
+  const [, up] = await sql.batch([
+    stmt(Q.drop, { idHash }),
+    upsertServer(id, keyHash, address, now),
   ], "write");
-  return String(upserted!.rows[0]!.id) as ServerId;
+  return String(up!.rows[0]!.id) as ServerId;
 };

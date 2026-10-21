@@ -58,6 +58,7 @@ Deno.test("reports: validation", async () => {
   assertEquals((await post(ban({ kind: "warn" }))).status, 400);
   assertEquals((await post(ban({ severity: 6 }))).status, 400);
   assertEquals((await post(ban({ category: "rudeness" }))).status, 400);
+  assertEquals((await post(ban({ category: "exploiting" }))).status, 400);
   assertEquals((await post(ban({ userId: "someone" }))).status, 400);
   assertEquals((await post(ban({ ip: "1.2.3.4" }))).status, 400);
   assertEquals((await post(ban({ at: T0 + 3600 }))).status, 400);

@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "jsr:@std/assert@^1.0.19";
-import { ban, harness, SPEC } from "./helpers.ts";
+import spec from "../openapi.yaml" with { type: "text" };
+import { ban, harness } from "./helpers.ts";
 
 Deno.test("unknown routes are 404 with an error body", async () => {
   const h = harness();
@@ -33,7 +34,7 @@ Deno.test("pages: index, scalar ui and the spec, no auth, no db", async () => {
   }
   assert(String((await h.request("GET", "/")).body).includes('href="/docs"'));
   assert(String((await h.request("GET", "/docs")).body).includes("createApiReference"));
-  const spec = await h.request("GET", "/openapi.yaml");
-  assertEquals(spec.status, 200);
-  assertEquals(spec.body, SPEC);
+  const yaml = await h.request("GET", "/openapi.yaml");
+  assertEquals(yaml.status, 200);
+  assertEquals(yaml.body, spec);
 });

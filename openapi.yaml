@@ -6,8 +6,6 @@ info:
     central server for [clearance](https://github.com/syrenaaa/clearance), a plugin for scp: secret
     laboratory servers. collects anonymous daily stats + shared ban reports.
 
-    facts only, never verdicts: each game server decides what the facts mean for a join.
-
     - times are unix secs (ints)
     - user ids are trimmed + lowercased, e.g. `76561198000000000@steam`
     - bodies must be `application/json` (else 415), max 16 KiB (else 413)
@@ -15,7 +13,7 @@ info:
 
     `/` is the index page, `/docs` this reference, `/openapi.yaml` the raw spec.
 servers:
-  - url: https://furry--8ee5b44ccd0611f1a5e41607ee4eb77e.web.val.run
+  - url: https://sl-clearance.val.run
 security:
   - serverKey: []
 
@@ -416,11 +414,13 @@ components:
         banRateByScore:
           type: object
           description: bansByJoinScore / scores per bucket. buckets with no scored checks are left out
+          propertyNames:
+            pattern: "^(0|[1-9]0|1[0-3]0)$"
           additionalProperties: { type: number, minimum: 0 }
 
     BanCategory:
       type: string
-      enum: [cheating, exploiting, griefing, harassment, ban_evasion, other]
+      enum: [cheating, griefing, harassment, ban_evasion, other]
 
     ReportRequest:
       oneOf:

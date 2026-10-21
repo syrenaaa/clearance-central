@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>clearance-central API</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.73.0/dist/browser/standalone.js"></script>
+    <!-- servers points scalar's "try it" at this deployment, not the spec's example url -->
+    <script>
+    Scalar.createApiReference("#app", {
+      url: "/openapi.yaml",
+      servers: [{ url: location.origin }],
+    });
+    </script>
+  </body>
+</html>

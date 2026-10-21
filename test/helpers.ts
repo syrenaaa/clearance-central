@@ -8,7 +8,6 @@ import type { UnixTime } from "../src/types.ts";
 export const ADMIN_KEY = "admin-key-for-tests-0123456789abcdef";
 /** 2026-06-15T12:00:00Z */
 export const T0 = 1_781_524_800;
-export const SPEC = "openapi: 3.1.0\n";
 
 export type Harness = {
   readonly sql: Sql;
@@ -35,7 +34,6 @@ export const harness = (): Harness => {
     now: () => clock.now as UnixTime,
     adminKey: ADMIN_KEY,
     serverList,
-    spec: () => Promise.resolve(SPEC),
   });
 
   const request: Harness["request"] = async (method, path, options = {}) => {

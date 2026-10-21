@@ -45,7 +45,6 @@ export type DailyStats = {
 
 export const BAN_CATEGORIES = [
   "cheating",
-  "exploiting",
   "griefing",
   "harassment",
   "ban_evasion",
