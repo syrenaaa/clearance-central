@@ -4,6 +4,7 @@ import { type RequestHandler, route } from "jsr:@std/http@^1.1.4/unstable-route"
 import { createAuth } from "./auth.ts";
 import { migrate, type Sql } from "./db/mod.ts";
 import { docsRoutes } from "./docs.ts";
+import { homeRoutes } from "./home.ts";
 import { fail } from "./http.ts";
 import type { Ctx } from "./routes/ctx.ts";
 import { reportRoutes } from "./routes/reports.ts";
@@ -39,8 +40,8 @@ export const createApp = (deps: Deps): RequestHandler => {
     () => fail(404, "not_found"),
   );
 
-  // docs come first so they don't wait on the schema
-  const router = route(docsRoutes(deps.spec), async (req, info) => {
+  // static pages come first so they don't wait on the schema
+  const router = route([...homeRoutes(), ...docsRoutes(deps.spec)], async (req, info) => {
     await ready();
     return api(req, info);
   });

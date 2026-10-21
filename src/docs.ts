@@ -26,7 +26,7 @@ const PAGE = `<!doctype html>
 </html>
 `;
 
-/** `GET /` (ui) and `GET /openapi.yaml`. `spec` is read once, then cached */
+/** `GET /docs` (ui) and `GET /openapi.yaml`. `spec` is read once, then cached */
 export const docsRoutes = (spec: () => Promise<string>): Route[] => {
   let text: Promise<string> | undefined;
   const load = () =>
@@ -37,7 +37,7 @@ export const docsRoutes = (spec: () => Promise<string>): Route[] => {
   return [
     {
       method: "GET",
-      pattern: new URLPattern({ pathname: "/" }),
+      pattern: new URLPattern({ pathname: "/docs" }),
       handler: () =>
         new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8" } }),
     },
