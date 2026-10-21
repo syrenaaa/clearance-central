@@ -123,6 +123,20 @@ footer {
   margin-top: 3rem;
 }
 
+/* home */
+dl.links {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: .35rem 1.5rem;
+  margin: 2rem 0 0;
+}
+dl.links dt {
+  color: var(--mute);
+}
+dl.links dd {
+  margin: 0;
+}
+
 /* privacy */
 h3 {
   font-size: 1rem;
