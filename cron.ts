@@ -1,8 +1,8 @@
 /** val town interval entry: report retention purge, run daily */
 
 import { sqlite } from "https://esm.town/v/std/sqlite/main.ts";
-import { RETENTION_SECONDS } from "./src/app.ts";
-import { migrate, purge } from "./src/db.ts";
+import { RETENTION_SECONDS } from "./src/limits.ts";
+import { migrate, purge } from "./src/db/mod.ts";
 import type { UnixTime } from "./src/types.ts";
 
 export default async function (): Promise<void> {

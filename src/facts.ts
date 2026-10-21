@@ -1,6 +1,6 @@
 /** rows -> api responses. facts only, never verdicts */
 
-import type { ActiveBan, NetworkRows } from "./db.ts";
+import type { ActiveBan, NetworkRows } from "./db/mod.ts";
 import type { CheckCounts, Day, UnixTime, UserId } from "./types.ts";
 
 type Buckets = Record<string, number>;

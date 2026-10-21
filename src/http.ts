@@ -1,6 +1,6 @@
 /** req/res helpers */
 
-import type { DecodeError } from "./decode.ts";
+import type { DecodeError } from "./decode/core.ts";
 import { err, ok, type Result } from "./result.ts";
 
 export const json = (
@@ -58,3 +58,6 @@ export const pathParam = (value: string | undefined): string | undefined => {
     return undefined;
   }
 };
+
+/** url pattern on the path only */
+export const pattern = (pathname: string): URLPattern => new URLPattern({ pathname });

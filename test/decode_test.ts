@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@^1.0.19";
-import { day, scoreBuckets, serverAddress, userId } from "../src/decode.ts";
+import { day, scoreBuckets, serverAddress, userId } from "../src/decode/mod.ts";
 import { banRates } from "../src/facts.ts";
 
 Deno.test("userId normalizes like the plugin", () => {

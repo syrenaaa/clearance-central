@@ -1,6 +1,6 @@
 import { createClient } from "npm:@libsql/client-wasm@^0.15.15";
 import { createApp } from "../src/app.ts";
-import type { Sql } from "../src/db.ts";
+import type { Sql } from "../src/db/mod.ts";
 import { ok } from "../src/result.ts";
 import type { ServerList } from "../src/serverlist.ts";
 import type { UnixTime } from "../src/types.ts";
@@ -73,3 +73,23 @@ export const harness = (): Harness => {
 
   return { sql, clock, listed, request, register };
 };
+
+export const stats = (overrides: Record<string, unknown> = {}) => ({
+  pluginVersion: "1.0.0",
+  enforce: true,
+  thresholds: { allowScore: 40, flagScore: 70 },
+  checks: { allow: 20, flag: 4, deny: 1, bypass: 2 },
+  scores: { "0": 10, "30": 10, "60": 4, "100": 1 },
+  bansByJoinScore: { "60": 1, "100": 1 },
+  ...overrides,
+});
+
+export const ban = (overrides: Record<string, unknown> = {}) => ({
+  kind: "ban",
+  clientRef: "p-1",
+  userId: "76561198000000001@steam",
+  at: T0 - 3600,
+  severity: 3,
+  category: "cheating",
+  ...overrides,
+});
