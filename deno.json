@@ -1,0 +1,16 @@
+{
+  "tasks": {
+    "test": "deno test --allow-read",
+    "check": "deno fmt --check && deno lint && deno check --allow-import main.ts cron.ts"
+  },
+  "fmt": {
+    "lineWidth": 100
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  }
+}

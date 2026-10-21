@@ -1,0 +1,471 @@
+openapi: 3.1.0
+info:
+  title: clearance-central
+  version: 0.1.0
+  description: |
+    Central service for servers running the Clearance plugin (SCP: Secret Laboratory).
+    It collects anonymous daily statistics and, later, shared ban reports.
+    It returns facts only. Each game server decides what the facts mean for a join.
+
+    Times are unix seconds (integers). User ids are trimmed and lowercased,
+    for example `76561198000000000@steam`.
+
+    Request bodies must be `application/json` (else 415) and at most 16 KiB
+    (else 413). Any endpoint may answer 500 with an `Error` body; the plugin
+    retries writes on 5xx and fails open on lookups.
+
+    Interactive docs are served at `/` and this spec at `/openapi.yaml`.
+servers:
+  - url: https://clearance-central.example.val.run
+security:
+  - serverKey: []
+
+tags:
+  - name: servers
+    description: Claiming a server listing and getting an API key.
+  - name: stats
+    description: Anonymous daily aggregates. Built first.
+  - name: reports
+    description: Shared ban reports. Built second.
+
+paths:
+  /v1/servers:
+    post:
+      tags: [servers]
+      summary: Register a server directly (admin)
+      description: |
+        For the operator's own servers, before claim verification works. Registering
+        an address that already has a live server gives it a new key (same serverId)
+        and invalidates the old one. The API key is returned once.
+      security:
+        - adminKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClaimRequest" }
+      responses:
+        "201":
+          description: Registered or re-keyed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServerKey" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/servers/claims:
+    post:
+      tags: [servers]
+      summary: Start claiming a server
+      description: |
+        Returns a claim token. The server owner puts it in the Server Info of their
+        verified server, then calls verify.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClaimRequest" }
+      responses:
+        "201":
+          description: Claim created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/servers/claims/{claimId}/verify:
+    post:
+      tags: [servers]
+      summary: Finish a claim and get the server's API key
+      description: |
+        Checks the verified server list for the claim token in the server's Server Info.
+        On success the API key is returned once; only its hash is stored. A claim is
+        used once. If the address already has a live server, that server gets the new
+        key (same serverId), so verifying again recovers a lost key.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ClaimId"
+      responses:
+        "200":
+          description: Verified.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServerKey" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            The server is not on the list (`server_not_listed`) or the token was not
+            found in its Server Info (`token_not_found`), yet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: The verified server list could not be read. Retry later.
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/servers/{serverId}:
+    delete:
+      tags: [servers]
+      summary: Revoke a server (admin)
+      description: Revokes the server's key and hides all of its reports.
+      security:
+        - adminKey: []
+      parameters:
+        - $ref: "#/components/parameters/ServerId"
+      responses:
+        "204": { description: Revoked. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/stats/{day}:
+    put:
+      tags: [stats]
+      summary: Upload one day of aggregates
+      description: |
+        Idempotent: uploading the same day again replaces it. Days with fewer than
+        20 checks in total are accepted but not stored, so small servers can't be
+        re-identified.
+      parameters:
+        - name: day
+          in: path
+          required: true
+          description: UTC day, YYYY-MM-DD.
+          schema: { type: string, format: date }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DailyStats" }
+      responses:
+        "200":
+          description: Accepted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatsAccepted" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/stats/network:
+    get:
+      tags: [stats]
+      summary: Network-wide aggregates
+      description: |
+        Sums over all non-revoked servers in the range, plus the ban rate per score
+        bucket. Used to pick good default thresholds and to compare one server
+        against the network.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Aggregates.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkStats" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/reports:
+    post:
+      tags: [reports]
+      summary: Report a ban or a pardon
+      description: |
+        Sent from the plugin's background queue. `clientRef` makes it idempotent:
+        the same server sending the same clientRef twice gets the existing report back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReportRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "200":
+          description: Already reported (same clientRef).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: A pardon referenced a ban this server didn't report.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/players/{userId}:
+    get:
+      tags: [reports]
+      summary: Network facts about a player
+      description: |
+        Called during pre-auth while the player waits, so it must be fast. Only counts
+        unpardoned bans from verified, non-revoked servers, inside the retention window.
+        A player with no reports gets zeros, not 404.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Facts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerFacts" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    serverKey:
+      type: http
+      scheme: bearer
+      description: Per-server API key from verify.
+    adminKey:
+      type: http
+      scheme: bearer
+      description: Admin key from the service's environment.
+
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/UserId" }
+    ServerId:
+      name: serverId
+      in: path
+      required: true
+      schema: { type: string }
+    ClaimId:
+      name: claimId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Invalid input.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, wrong or revoked key.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Too many requests. The plugin waits Retry-After seconds and retries.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    UserId:
+      type: string
+      description: Lowercase user id with its auth provider suffix.
+      pattern: '^[^@\s]+@(steam|discord|northwood)$'
+      examples: ["76561198000000000@steam"]
+
+    UnixTime:
+      type: integer
+      format: int64
+      minimum: 0
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: 'Machine-readable code, e.g. "invalid_day".' }
+        message: { type: string }
+
+    ClaimRequest:
+      type: object
+      required: [address, port]
+      properties:
+        address: { type: string, description: Public address as shown on the server list. }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+
+    Claim:
+      type: object
+      required: [claimId, token, expiresAt]
+      properties:
+        claimId: { type: string }
+        token: { type: string, description: "Put this in the Server Info, then call verify." }
+        expiresAt: { $ref: "#/components/schemas/UnixTime" }
+
+    ServerKey:
+      type: object
+      required: [serverId, apiKey]
+      properties:
+        serverId: { type: string }
+        apiKey: {
+          type: string,
+          description: Shown once. Goes into the plugin config as CentralKey.,
+        }
+
+    ScoreBuckets:
+      type: object
+      description: |
+        Counts per score bucket. Keys are the bucket's lower bound in steps of 10
+        ("0", "10", ..., "130"). Missing keys mean 0.
+      propertyNames:
+        pattern: "^(0|[1-9]0|1[0-3]0)$"
+      additionalProperties: { type: integer, minimum: 0 }
+
+    CheckCounts:
+      type: object
+      description: How each check on that day ended.
+      additionalProperties: false
+      properties:
+        allow: { type: integer, minimum: 0 }
+        flag: { type: integer, minimum: 0 }
+        deny: { type: integer, minimum: 0 }
+        bypass: { type: integer, minimum: 0 }
+        allowlisted: { type: integer, minimum: 0 }
+        sponsored: { type: integer, minimum: 0 }
+        steamError: { type: integer, minimum: 0 }
+        steamDownNew: { type: integer, minimum: 0 }
+
+    DailyStats:
+      type: object
+      required: [pluginVersion, enforce, thresholds, checks, scores, bansByJoinScore]
+      additionalProperties: false
+      properties:
+        pluginVersion: { type: string, examples: ["1.0.0"] }
+        enforce: {
+          type: boolean,
+          description: Whether the server was rejecting players or only logging.,
+        }
+        thresholds:
+          type: object
+          required: [allowScore, flagScore]
+          additionalProperties: false
+          properties:
+            allowScore: { type: integer }
+            flagScore: { type: integer }
+        checks: { $ref: "#/components/schemas/CheckCounts" }
+        scores:
+          $ref: "#/components/schemas/ScoreBuckets"
+          description: Scores of scored checks (allow / flag / deny) that day.
+        bansByJoinScore:
+          $ref: "#/components/schemas/ScoreBuckets"
+          description: |
+            Bans issued that day, bucketed by the score the banned player had at their
+            last check. The plugin looks the score up locally; no user ids are sent.
+
+    StatsAccepted:
+      type: object
+      required: [stored]
+      properties:
+        stored: { type: boolean }
+        reason:
+          type: string
+          enum: [too_few_checks]
+          description: Present when stored is false.
+
+    NetworkStats:
+      type: object
+      required: [from, to, servers, checks, scores, bansByJoinScore, banRateByScore]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        servers: { type: integer, description: Servers that contributed at least one stored day. }
+        checks: { $ref: "#/components/schemas/CheckCounts" }
+        scores: { $ref: "#/components/schemas/ScoreBuckets" }
+        bansByJoinScore: { $ref: "#/components/schemas/ScoreBuckets" }
+        banRateByScore:
+          type: object
+          description: bansByJoinScore / scores per bucket. Buckets with no scored checks are omitted.
+          additionalProperties: { type: number, minimum: 0 }
+
+    BanCategory:
+      type: string
+      enum: [cheating, exploiting, griefing, harassment, ban_evasion, other]
+
+    ReportRequest:
+      oneOf:
+        - $ref: "#/components/schemas/BanReport"
+        - $ref: "#/components/schemas/PardonReport"
+      discriminator:
+        propertyName: kind
+        mapping:
+          ban: "#/components/schemas/BanReport"
+          pardon: "#/components/schemas/PardonReport"
+
+    BanReport:
+      type: object
+      required: [kind, clientRef, userId, at, severity, category]
+      additionalProperties: false
+      properties:
+        kind: { const: ban }
+        clientRef: { type: string, description: The plugin's local punishment id. }
+        userId: { $ref: "#/components/schemas/UserId" }
+        at: { $ref: "#/components/schemas/UnixTime" }
+        severity: { type: integer, minimum: 1, maximum: 5 }
+        category: { $ref: "#/components/schemas/BanCategory" }
+
+    PardonReport:
+      type: object
+      required: [kind, clientRef, reportId, at]
+      additionalProperties: false
+      properties:
+        kind: { const: pardon }
+        clientRef: { type: string }
+        reportId: { type: string, description: Id of a ban this same server reported earlier. }
+        at: { $ref: "#/components/schemas/UnixTime" }
+
+    Report:
+      type: object
+      required: [reportId, kind, receivedAt]
+      properties:
+        reportId: { type: string }
+        kind: { type: string, enum: [ban, pardon] }
+        receivedAt: { $ref: "#/components/schemas/UnixTime" }
+
+    PlayerFacts:
+      type: object
+      required: [userId, distinctServers, activeBans, lastBan]
+      description: |
+        Only bans: there is deliberately no "first seen" or sighting data, since
+        tracking joins across servers isn't server security.
+      properties:
+        userId: { $ref: "#/components/schemas/UserId" }
+        distinctServers: {
+          type: integer,
+          minimum: 0,
+          description: Verified servers with an unpardoned ban for this player.,
+        }
+        activeBans: { type: integer, minimum: 0 }
+        lastBan:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [at, severity, category]
+              properties:
+                at: { $ref: "#/components/schemas/UnixTime" }
+                severity: { type: integer }
+                category: { $ref: "#/components/schemas/BanCategory" }
